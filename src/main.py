@@ -13,7 +13,7 @@ def main():
 
 
 if __name__ == "__main__":
-    model_path = '../models/vgg16_modell.h5'
+    model_path = '../models/vgg16_model.keras'
 
     # Kiểm tra xem mô hình đã được huấn luyện và lưu trữ chưa
     # if not os.path.exists(model_path):

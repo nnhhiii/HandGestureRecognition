@@ -7,7 +7,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 def load_model():
     # Tải mô hình VGG16 đã huấn luyện
-    model = tf.keras.models.load_model('../models/vgg16_modell.h5')  # Đường dẫn tới mô hình đã lưu
+    model = tf.keras.models.load_model('../models/vgg16_modell.keras')  # Đường dẫn tới mô hình đã lưu
     return model
 
 def predict_gesture(model, preprocessed_image):
@@ -72,4 +72,4 @@ def train_model(train_data_dir, validation_data_dir, epochs=10):
     model.fit(train_generator, epochs=epochs, validation_data=validation_generator, callbacks=[early_stopping])
 
     # Lưu mô hình
-    model.save('../models/vgg16_modell.h5')
+    model.save('../models/vgg16_model.keras')
