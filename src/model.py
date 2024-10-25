@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -5,28 +6,12 @@ from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import EarlyStopping
 
-def load_model():
+def load_train_model():
     # Tải mô hình VGG16 đã huấn luyện
     model = tf.keras.models.load_model('../models/vgg16_model.keras')  # Đường dẫn tới mô hình đã lưu
     return model
 
-def predict_gesture(model, preprocessed_image):
-    # Ds
-    class_names = ["Lòng bàn tay", "L", "Năm đâm", "Ngón cái", "Ok"]
-
-    # Dự đoán cử chỉ từ hình ảnh đã được tiền xử lý
-    predictions = model.predict(preprocessed_image)
-
-    # Lấy chỉ số của lớp có xác suất cao nhất
-    predicted_class_index = tf.argmax(predictions, axis=1).numpy()[0]
-
-    # Lấy tên lớp dựa trên chỉ số
-    predicted_class_name = class_names[predicted_class_index]
-
-    return predicted_class_name
-
-
-def train_model(train_data_dir, validation_data_dir, epochs=10):
+def train_model(train_data_dir, validation_data_dir, epochs=5):
     # Sử dụng ImageDataGenerator để tạo các tập dữ liệu cho huấn luyện và xác thực
     train_datagen = ImageDataGenerator(rescale=1.0 / 255.0, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
@@ -59,7 +44,7 @@ def train_model(train_data_dir, validation_data_dir, epochs=10):
     # Thêm các lớp tùy chỉnh cho mô hình
     x = Flatten()(base_model.output)
     x = Dense(256, activation='relu')(x)
-    predictions = Dense(5, activation='softmax')(x)
+    predictions = Dense(11, activation='softmax')(x)
 
     # Tạo mô hình hoàn chỉnh
     model = Model(inputs=base_model.input, outputs=predictions)
