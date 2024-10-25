@@ -1,12 +1,11 @@
-from model import load_model
 from gui import start_gui
-from src.model import train_model
+from src.model import train_model, load_train_model
 import os
 
 
 def main():
     # Tải mô hình VGG16 đã huấn luyện
-    model = load_model()
+    model = load_train_model()
 
     # Bắt đầu giao diện người dùng
     start_gui(model)
