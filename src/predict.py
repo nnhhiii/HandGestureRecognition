@@ -5,7 +5,7 @@ gesture_history = []
 
 def predict_gesture(model, preprocessed_image):
     # Ds
-    class_names = ["f", "g", "h", "i", "j", "u", "v","w","x","y","z"]
+    class_names = ["f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
 
     # Dự đoán cử chỉ từ hình ảnh đã được tiền xử lý
     predictions = model.predict(preprocessed_image)

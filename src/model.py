@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from keras.src.layers import BatchNormalization
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import Dense, Flatten
@@ -11,7 +12,7 @@ def load_train_model():
     model = tf.keras.models.load_model('../models/vgg16_model.keras')  # Đường dẫn tới mô hình đã lưu
     return model
 
-def train_model(train_data_dir, validation_data_dir, epochs=5):
+def train_model(train_data_dir, validation_data_dir, epochs):
     # Sử dụng ImageDataGenerator để tạo các tập dữ liệu cho huấn luyện và xác thực
     train_datagen = ImageDataGenerator(rescale=1.0 / 255.0, rotation_range=20, width_shift_range=0.2,
                                        height_shift_range=0.2, shear_range=0.2, zoom_range=0.2,
@@ -42,9 +43,17 @@ def train_model(train_data_dir, validation_data_dir, epochs=5):
         layer.trainable = False
 
     # Thêm các lớp tùy chỉnh cho mô hình
-    x = Flatten()(base_model.output)
-    x = Dense(256, activation='relu')(x)
-    predictions = Dense(11, activation='softmax')(x)
+    x = base_model.output
+    x = Flatten()(x)
+    x = Dense(1024, activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = Dense(512, activation='relu')(x)
+    x = BatchNormalization()(x)
+    predictions = Dense(29, activation='softmax')(x)
+
+    model = Model(inputs=base_model.input, outputs=predictions)
+
+    model.summary()
 
     # Tạo mô hình hoàn chỉnh
     model = Model(inputs=base_model.input, outputs=predictions)
