@@ -23,7 +23,7 @@ def start_gui(model):
         if ext in [".jpg", ".jpeg", ".png"]:
             # Hiển thị ảnh
             img = Image.open(file_path)
-            img = img.resize((300, 400))
+            img = img.resize((300, 300))
             img_tk = ImageTk.PhotoImage(img)
             panel = tk.Label(root, image=img_tk)
             panel.image = img_tk
@@ -44,7 +44,7 @@ def start_gui(model):
         elif ext in [".mp4", ".avi"]:
             cap = cv2.VideoCapture(file_path)
             frame_skip = 10  # Chỉ nhận diện 1 khung hình mỗi 10 khung hình
-            # prev_gesture = None
+            prev_gesture = None  # Lưu cử chỉ nhận diện trước đó
 
             frame_count = 0
             while cap.isOpened():
@@ -56,12 +56,12 @@ def start_gui(model):
                     preprocessed_frame = preprocess_image(frame)
                     predicted_class, confidence = predict_gesture(model, preprocessed_frame)
 
-                    if confidence > 0.5:
+                    if confidence > 0.5 and predicted_class != prev_gesture:
                         result_label.config(
                             text=f"Cử chỉ được nhận diện: {predicted_class} với độ chính xác {confidence:.2f}"
                         )
                         # Cập nhật cử chỉ trước đó và thêm vào lịch sử
-                        # prev_gesture = predicted_class
+                        prev_gesture = predicted_class
                         gesture_history.append(predicted_class)
                         history_label.config(text="Lịch sử nhận diện: " + ", ".join(gesture_history))
                     else:

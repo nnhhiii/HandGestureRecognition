@@ -1,5 +1,6 @@
+from model import load_train_model
 from gui import start_gui
-from src.model import train_model, load_train_model
+from src.model import train_model
 import os
 
 

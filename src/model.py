@@ -49,7 +49,7 @@ def train_model(train_data_dir, validation_data_dir, epochs):
     x = BatchNormalization()(x)
     x = Dense(512, activation='relu')(x)
     x = BatchNormalization()(x)
-    predictions = Dense(29, activation='softmax')(x)
+    predictions = Dense(5, activation='softmax')(x)
 
     model = Model(inputs=base_model.input, outputs=predictions)
 
