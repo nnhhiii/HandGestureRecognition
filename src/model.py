@@ -9,7 +9,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 def load_train_model():
     # Tải mô hình VGG16 đã huấn luyện
-    model = tf.keras.models.load_model('../models/vgg16_model.keras')  # Đường dẫn tới mô hình đã lưu
+    model = tf.keras.models.load_model('../models/vgg16model.keras')  # Đường dẫn tới mô hình đã lưu
     return model
 
 def train_model(train_data_dir, validation_data_dir, epochs):
@@ -66,4 +66,4 @@ def train_model(train_data_dir, validation_data_dir, epochs):
     model.fit(train_generator, epochs=epochs, validation_data=validation_generator, callbacks=[early_stopping])
 
     # Lưu mô hình
-    model.save('../models/vgg16_model.keras')
+    model.save('../models/vgg16model.keras')
