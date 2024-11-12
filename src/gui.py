@@ -1,67 +1,89 @@
 import os
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, font
 import cv2
 from PIL import Image, ImageTk
 from preprocess import preprocess_image
 from predict import predict_gesture, gesture_history
+import customtkinter as ctk
 
-cap = None  # Khai báo cap toàn cục hoặc ngoài các hàm
+cap = None
+after_event_id_recognition = None
 
 def start_gui(model):
-    root = tk.Tk()
+    root = ctk.CTk()
+    root.configure(fg_color="white")
+
     root.title("Nhận dạng cử chỉ tay")
 
-    result_label = tk.Label(root, text="")
-    result_label.grid(row=2, column=2)
+    gesture =  ctk.CTkLabel(root, text="", font=("Verdana", 18, "bold"), text_color="#58CC01")
+    gesture.grid(row=1, column=4, columnspan=3, sticky="e", padx=10)
 
-    history_label = tk.Label(root, text="", wraplength=300, justify="left")
-    history_label.grid(row=5, column=2, columnspan=2)
+    result_label = ctk.CTkLabel(root, text="")
+    result_label.grid(row=8, column=4, columnspan=3)
 
-    recognize_btn = tk.Button(root, text="Nhận diện cử chỉ")
+    title = ctk.CTkLabel(root, text="NHẬN DẠNG CỬ CHỈ TAY", font=("Verdana", 23, "bold"), text_color="#0E3469")
+    title.grid(row=0, column=1, columnspan=6, pady=15)
+
+    label = ctk.CTkLabel(root, text="")
+    label.grid(row=8, column=2)
+
+    history_label = ctk.CTkLabel(root, text="", wraplength=300, justify="left")
+    history_label.grid(row=10, column=4, columnspan=3)
+
+    recognize_btn = ctk.CTkButton(root, text="Nhận diện", text_color="white", corner_radius=50, width=100, height=50, fg_color="#FF86D0", hover_color="#CC6BA7")
     recognize_btn.grid_forget()
 
-    capture_image_btn = tk.Button(root, text="Chụp ảnh")
-    start_video_btn = tk.Button(root, text="Bắt đầu quay video")
-    stop_video_btn = tk.Button(root, text="Dừng quay video")
-    back_to_camera_btn = tk.Button(root, text="Quay lại camera")
+    capture_image_btn = ctk.CTkButton(root, text="Chụp", text_color="white", corner_radius=15, fg_color="#04CD9C", width=50, height=60, hover_color="#08A47D")
+    start_video_btn = ctk.CTkButton(root, text="Quay", text_color="white", corner_radius=15, fg_color="#FF9601", width=50, height=60, hover_color="#CD7807")
+    stop_video_btn = ctk.CTkButton(root, text="Dừng", text_color="white", corner_radius=15, fg_color="#FF4C4A", width=50, height=60, hover_color="#CD3D3C")
 
-    camera_label = tk.Label(root)
-    camera_label.grid(row=1, column=1)
+    camera_label = ctk.CTkLabel(root, text="")
+    camera_label.grid(row=2, column=1, columnspan=3, rowspan=6)
 
-    image_label = tk.Label(root)
-    image_label.grid(row=1, column=2)
+    image_label = ctk.CTkLabel(root, text="")
+
 
     def clear_display_area():
-        """Clear the display area and reset buttons specific to each mode."""
-        result_label.config(text="")
-        history_label.config(text="")
-        if hasattr(camera_label, 'image'):
-            camera_label.image = None
-        camera_label.config(image="")
-        if hasattr(image_label, 'image'):
-            image_label.image = None
-        image_label.config(image="")
+        global after_event_id_recognition, cap
+        gesture.configure(text="")
+        gesture.grid(row=1, column=4, columnspan=3, sticky="e", padx=10)
+        result_label.configure(text="")
+        result_label.grid(row=8, column=4, columnspan=3)
+        label.configure(text="")
+        history_label.configure(text="")
+        history_label.grid(row=10, column=4, columnspan=3)
+        # Xóa ảnh khỏi label
+        image_label.configure(image=None)
+        image_label.image = None
+        image_label.grid_forget()
+        camera_label.configure(image=None)
+        camera_label.image = None
+        camera_label.grid_forget()
+
         recognize_btn.grid_forget()
         capture_image_btn.grid_forget()
         start_video_btn.grid_forget()
         stop_video_btn.grid_forget()
-        back_to_camera_btn.grid_forget()
         gesture_history.clear()
+        if after_event_id_recognition is not None:
+            root.after_cancel(after_event_id_recognition)
+            after_event_id_recognition = None
 
     def show_result(predicted_class, confidence):
         if confidence > 0.5:
-            result_label.config(text=f"Cử chỉ được nhận diện: {predicted_class} với độ chính xác {confidence:.2f}")
+            gesture.configure(text=predicted_class)
+            result_label.configure(text=f"Cử chỉ được nhận diện: {predicted_class}     Độ chính xác: {confidence:.2f}")
             gesture_history.append(predicted_class)
-            history_label.config(text="Lịch sử nhận diện: " + ", ".join(gesture_history))
+            history_label.configure(text="Lịch sử nhận diện: " + ", ".join(gesture_history))
         else:
-            result_label.config(text="Không nhận diện được cử chỉ. Vui lòng thực hiện lại.")
+            result_label.configure(text="Không nhận diện được cử chỉ. Vui lòng thực hiện lại.")
 
     def upload_media():
-        global cap  # Sử dụng cap toàn cục
-        if cap is not None:
-            cap.release()  # Đảm bảo đóng camera nếu đang mở
+        global cap
         clear_display_area()
+        if cap is not None:
+            cap.release()
         file_path = filedialog.askopenfilename(filetypes=[("Image and Video files", "*.jpg *.jpeg *.png *.mp4 *.avi")])
         if not file_path:
             return
@@ -72,14 +94,13 @@ def start_gui(model):
         if ext in [".jpg", ".jpeg", ".png"]:
             # Hiển thị ảnh
             img = Image.open(file_path)
-            img = img.resize((300, 300))
-            img_tk = ImageTk.PhotoImage(img)
+            img_tk = ctk.CTkImage(size=(400, 300), light_image=img)
 
             # Xóa ảnh cũ nếu có trước khi hiển thị ảnh mới
             image_label.grid_forget()
-            image_label.config(image=img_tk)
+            image_label.configure(image=img_tk)
             image_label.image = img_tk
-            image_label.grid(row=1, column=2)
+            image_label.grid(row=2, column=4, columnspan=3, rowspan=6, pady=15, padx=15)
 
             def recognize_gesture():
                 img_cv = cv2.imread(file_path)
@@ -87,10 +108,8 @@ def start_gui(model):
                 predicted_class, confidence = predict_gesture(model, preprocessed_img)
                 show_result(predicted_class, confidence)
 
-            recognize_btn.config(command=recognize_gesture)
-            recognize_btn.grid(row=3, column=2)
-
-
+            recognize_btn.configure(command=recognize_gesture)
+            recognize_btn.grid(row=9, column=5)
         elif ext in [".mp4", ".avi"]:
             cap = cv2.VideoCapture(file_path)
             frame_skip = 10
@@ -108,7 +127,7 @@ def start_gui(model):
                         preprocessed_frame = preprocess_image(frame)
                         predicted_class, confidence = predict_gesture(model, preprocessed_frame)
 
-                        if confidence > 0.5 and predicted_class != prev_gesture:
+                        if predicted_class != prev_gesture:
                             show_result(predicted_class, confidence)
                             prev_gesture = predicted_class
                     frame_count += 1
@@ -117,13 +136,12 @@ def start_gui(model):
                         break
                 cap.release()
                 cv2.destroyAllWindows()
-
-            recognize_btn.config(command=recognize_video)
-            recognize_btn.grid(row=3, column=1)
+            recognize_btn.configure(command=recognize_video)
+            recognize_btn.grid(row=9, column=5)
 
     def open_camera():
-        global cap  # Sử dụng cap toàn cục
         clear_display_area()
+        global cap  # Sử dụng cap toàn cục
         cap = cv2.VideoCapture(0)  # Mở camera trực tiếp
         is_recording = False
 
@@ -132,15 +150,15 @@ def start_gui(model):
             if ret:
                 frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img_pil = Image.fromarray(frame_resized)
-                img_tk = ImageTk.PhotoImage(img_pil)
-                camera_label.config(image=img_tk)
+                img_tk = ctk.CTkImage(size=(600, 400), light_image=img_pil)
+                camera_label.configure(image=img_tk)
                 camera_label.image = img_tk
                 if not is_recording:
                     root.after(10, update_frame)
 
         def capture_image():
-            result_label.config(text="")
-            history_label.config(text="")
+            result_label.configure(text="")
+            history_label.configure(text="")
 
             ret, frame = cap.read()
             if ret:
@@ -149,9 +167,8 @@ def start_gui(model):
 
                 # Hiển thị ảnh chụp trên giao diện
                 img = Image.open(image_path)
-                img = img.resize((300, 300))
-                img_tk = ImageTk.PhotoImage(img)
-                image_label.config(image=img_tk)
+                img_tk = ctk.CTkImage(size=(400, 300), light_image=img)
+                image_label.configure(image=img_tk)
                 image_label.image = img_tk
 
                 def recognize_gesture():
@@ -160,15 +177,16 @@ def start_gui(model):
                     predicted_class, confidence = predict_gesture(model, preprocessed_img)  # Nhận diện cử chỉ
                     show_result(predicted_class, confidence)  # Hiển thị kết quả
 
-                recognize_btn.config(command=recognize_gesture)
+                recognize_btn.configure(command=recognize_gesture)
 
         def start_video_recording():
-            result_label.config(text="")
-            history_label.config(text="")
+            result_label.configure(text="")
+            label.configure(text="")
+            history_label.configure(text="")
 
             nonlocal is_recording
             is_recording = True
-            result_label.config(text="Đang quay video...")  # Hiển thị thông báo quay video
+            label.configure(text="Đang quay video...")  # Hiển thị thông báo quay video
 
             # Cấu hình VideoWriter để lưu video
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -180,9 +198,9 @@ def start_gui(model):
                     # Hiển thị frame lên giao diện
                     frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_resized)
-                    img_tk = ImageTk.PhotoImage(img_pil)
+                    img_tk = ctk.CTkImage(size=(600, 400), light_image=img_pil)
 
-                    camera_label.config(image=img_tk)
+                    camera_label.configure(image=img_tk)
                     camera_label.image = img_tk
 
                     # Ghi frame vào video
@@ -206,7 +224,7 @@ def start_gui(model):
         def stop_video_recording():
             nonlocal is_recording
             is_recording = False
-            result_label.config(text="Đã dừng quay video.")  # Hiển thị thông báo dừng quay video
+            label.configure(text="Đã dừng quay video.")  # Hiển thị thông báo dừng quay video
 
             # Đọc lại video đã quay để hiển thị
             video_path = "output_video.avi"
@@ -218,10 +236,10 @@ def start_gui(model):
                     # Chuyển đổi frame từ BGR sang RGB
                     frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_resized)
-                    img_tk = ImageTk.PhotoImage(img_pil)
+                    img_tk = ctk.CTkImage(size=(300, 300), light_image=img_pil)
 
                     # Hiển thị frame video trên giao diện
-                    image_label.config(image=img_tk)
+                    image_label.configure(image=img_tk)
                     image_label.image = img_tk
 
                     # Tiếp tục hiển thị video sau mỗi 10ms
@@ -258,10 +276,10 @@ def start_gui(model):
                     # Chuyển đổi frame từ OpenCV thành hình ảnh Tkinter để hiển thị
                     frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_resized)
-                    img_tk = ImageTk.PhotoImage(img_pil)
+                    img_tk = ctk.CTkImage(size=(300, 300), light_image=img_pil)
 
                     # Cập nhật hình ảnh lên giao diện
-                    image_label.config(image=img_tk)
+                    image_label.configure(image=img_tk)
                     image_label.image = img_tk  # Giữ tham chiếu tới ảnh để tránh bị thu hồi
 
                     # Lên lịch gọi lại hàm sau mỗi 30ms để tiếp tục hiển thị video
@@ -271,22 +289,24 @@ def start_gui(model):
                 process_frame()
 
             # Gán hàm nhận diện cử chỉ cho nút "Nhận diện cử chỉ"
-            recognize_btn.config(command=recognize_gesture)
+            recognize_btn.configure(command=recognize_gesture)
 
         update_frame()  # Bắt đầu cập nhật hình ảnh từ camera
+        image_label.grid(row=2, column=4, columnspan=3, rowspan=6, pady=15, padx=15)
+        camera_label.grid(row=2, column=1, columnspan=3, rowspan=6)
 
-        capture_image_btn.config(command=capture_image)
-        capture_image_btn.grid(row=3, column=1)
-        start_video_btn.config(command=start_video_recording)
-        start_video_btn.grid(row=4, column=1)
-        stop_video_btn.config(command=stop_video_recording)
-        stop_video_btn.grid(row=5, column=1)
+        capture_image_btn.configure(command=capture_image)
+        capture_image_btn.grid(row=9, column=1)
+        start_video_btn.configure(command=start_video_recording)
+        start_video_btn.grid(row=9, column=2)
+        stop_video_btn.configure(command=stop_video_recording)
+        stop_video_btn.grid(row=9, column=3)
 
-        recognize_btn.grid(row=3, column=2)
+        recognize_btn.grid(row=9, column=5)
 
     def start_live_recognition():
+        clear_display_area()
         global cap  # Sử dụng cap toàn cục
-        clear_display_area()  # Xóa giao diện trước khi bắt đầu nhận diện
         cap = cv2.VideoCapture(0)  # Mở camera trực tiếp
 
         def update_frame():
@@ -294,29 +314,39 @@ def start_gui(model):
             if ret:
                 frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img_pil = Image.fromarray(frame_resized)
-                img_tk = ImageTk.PhotoImage(img_pil)
-                camera_label.config(image=img_tk)
+                img_tk = ctk.CTkImage(size=(600, 400), light_image=img_pil)
+                camera_label.configure(image=img_tk)
                 camera_label.image = img_tk
+                camera_label.grid(row=2, column=1, columnspan=3, rowspan=6, pady=15, padx=15)
                 root.after(10, update_frame)  # Tiếp tục cập nhật frame
 
         def live_recognition():
+            global after_event_id_recognition
             ret, frame = cap.read()
             if ret:
-                preprocessed_frame = preprocess_image(frame)  # Tiền xử lý frame
-                predicted_class, confidence = predict_gesture(model, preprocessed_frame)  # Nhận diện cử chỉ
-                show_result(predicted_class, confidence)  # Hiển thị kết quả nhận diện
-                root.after(500, live_recognition)  # Lặp lại nhận diện sau mỗi 500ms (có thể điều chỉnh)
+                preprocessed_frame = preprocess_image(frame)
+                predicted_class, confidence = predict_gesture(model, preprocessed_frame)
+                result_label.grid(row=8, column=1, columnspan=3)
+                history_label.grid(row=10, column=1, columnspan=3)
+                gesture.grid(row=1, column=1, columnspan=3, sticky="e", padx=10)
+                show_result(predicted_class, confidence)
+                after_event_id_recognition = root.after(500, live_recognition)   # Lặp lại nhận diện sau mỗi 500ms
 
         update_frame()  # Bắt đầu cập nhật frame camera
         live_recognition()  # Bắt đầu nhận diện cử chỉ
 
-    upload_btn = tk.Button(root, text="Chọn ảnh/video", command=upload_media)
-    upload_btn.grid(row=0, column=0)
 
-    camera_btn = tk.Button(root, text="Chụp ảnh/quay video", command=open_camera)
-    camera_btn.grid(row=1, column=0)
+    upload_btn = ctk.CTkButton(root, text="Chọn ảnh/video", font=("Arial", 15, "bold"), text_color="white", corner_radius=10, width=180, height=60,
+                               fg_color="#4EA3E2", hover_color="#1DC1FF", command=upload_media)
+    upload_btn.grid(row=2, column=0, rowspan=2, padx=10, pady=10)
 
-    start_live_btn = tk.Button(root, text="Trực tiếp", command=start_live_recognition)
-    start_live_btn.grid(row=2, column=0)
+    camera_btn = ctk.CTkButton(root, text="Chụp ảnh/video", font=("Arial", 15, "bold"), text_color="white", corner_radius=10, width=180, height=60,
+                               fg_color="#4EA3E2", hover_color="#1DC1FF",command=open_camera)
+    camera_btn.grid(row=4, column=0, rowspan=2, padx=10, pady=10)
+
+    start_live_btn = ctk.CTkButton(root, text="Quay trực tiếp",  font=("Arial", 15, "bold"), text_color="white", corner_radius=10, width=180, height=60,
+                                   fg_color="#4EA3E2", hover_color="#1DC1FF",
+                                   command=start_live_recognition)
+    start_live_btn.grid(row=6, column=0, rowspan=2, padx=10, pady=10)
 
     root.mainloop()
