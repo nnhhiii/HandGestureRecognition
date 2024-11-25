@@ -1,8 +1,7 @@
 import os
-import tkinter as tk
-from tkinter import filedialog, font
+from tkinter import filedialog
 import cv2
-from PIL import Image, ImageTk
+from PIL import Image
 from preprocess import preprocess_image
 from predict import predict_gesture, gesture_history
 import customtkinter as ctk
@@ -141,164 +140,138 @@ def start_gui(model):
 
     def open_camera():
         clear_display_area()
-        global cap  # Sử dụng cap toàn cục
-        cap = cv2.VideoCapture(0)  # Mở camera trực tiếp
+        global cap
+        cap = cv2.VideoCapture(0)  # Mở camera
         is_recording = False
+        out = None
+
+        def display_frame(frame, target_label, size=(600, 400)):
+            """Hiển thị frame lên giao diện Tkinter."""
+            frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(frame_resized)
+            img_tk = ctk.CTkImage(size=size, light_image=img_pil)
+            target_label.configure(image=img_tk)
+            target_label.image = img_tk  # Lưu tham chiếu để tránh bị thu hồi
 
         def update_frame():
+            """Cập nhật hình ảnh từ camera."""
             ret, frame = cap.read()
             if ret:
-                frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img_pil = Image.fromarray(frame_resized)
-                img_tk = ctk.CTkImage(size=(600, 400), light_image=img_pil)
-                camera_label.configure(image=img_tk)
-                camera_label.image = img_tk
-                if not is_recording:
-                    root.after(10, update_frame)
+                display_frame(frame, camera_label)
+            if not is_recording:
+                root.after(10, update_frame)
 
         def capture_image():
+            """Chụp ảnh từ camera."""
             result_label.configure(text="")
             history_label.configure(text="")
 
             ret, frame = cap.read()
             if ret:
                 image_path = "captured_image.jpg"
-                cv2.imwrite(image_path, frame)
-
-                # Hiển thị ảnh chụp trên giao diện
-                img = Image.open(image_path)
-                img_tk = ctk.CTkImage(size=(400, 300), light_image=img)
-                image_label.configure(image=img_tk)
-                image_label.image = img_tk
+                cv2.imwrite(image_path, frame)  # Lưu ảnh
+                display_frame(frame, image_label, size=(400, 300))  # Hiển thị ảnh chụp
 
                 def recognize_gesture():
-                    img_cv = cv2.imread(image_path)  # Đọc ảnh đã chụp
-                    preprocessed_img = preprocess_image(img_cv)  # Tiền xử lý ảnh
-                    predicted_class, confidence = predict_gesture(model, preprocessed_img)  # Nhận diện cử chỉ
+                    preprocessed_img = preprocess_image(frame)  # Tiền xử lý
+                    predicted_class, confidence = predict_gesture(model, preprocessed_img)  # Nhận diện
                     show_result(predicted_class, confidence)  # Hiển thị kết quả
 
                 recognize_btn.configure(command=recognize_gesture)
 
         def start_video_recording():
-            result_label.configure(text="")
-            label.configure(text="")
-            history_label.configure(text="")
-
-            nonlocal is_recording
+            """Bắt đầu quay video."""
+            nonlocal is_recording, out
             is_recording = True
-            label.configure(text="Đang quay video...")  # Hiển thị thông báo quay video
+            result_label.configure(text="")
+            history_label.configure(text="")
+            label.configure(text="Đang quay video...")
 
-            # Cấu hình VideoWriter để lưu video
+            # Cấu hình VideoWriter
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            out = cv2.VideoWriter('output_video.avi', fourcc, 20.0, (640, 480))
-
-            def update_frame1():
-                ret, frame = cap.read()
-                if ret:
-                    # Hiển thị frame lên giao diện
-                    frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    img_pil = Image.fromarray(frame_resized)
-                    img_tk = ctk.CTkImage(size=(600, 400), light_image=img_pil)
-
-                    camera_label.configure(image=img_tk)
-                    camera_label.image = img_tk
-
-                    # Ghi frame vào video
-                    if is_recording:
-                        out.write(frame)
-
-                    # Cập nhật frame mỗi 10ms
-                    root.after(10, update_frame1)
+            out = cv2.VideoWriter('output_video.avi', fourcc, 24.0, (640, 480))
 
             def record_video():
-                nonlocal is_recording
                 ret, frame = cap.read()
-                if ret:
+                if ret and is_recording:
                     out.write(frame)  # Ghi frame vào video
-                    if is_recording:
-                        root.after(10, record_video)  # Tiếp tục quay video
+                    display_frame(frame, camera_label)  # Hiển thị frame
+                    root.after(10, record_video)
 
-            # Bắt đầu quay video và cập nhật hình ảnh từ camera
-            update_frame1()
+            record_video()
 
         def stop_video_recording():
-            nonlocal is_recording
+            """Dừng quay video và cung cấp tùy chọn nhận diện từ video."""
+            nonlocal is_recording, out
             is_recording = False
-            label.configure(text="Đã dừng quay video.")  # Hiển thị thông báo dừng quay video
-
-            # Đọc lại video đã quay để hiển thị
+            if out:
+                out.release()  # Giải phóng VideoWriter
+                out = None
+            label.configure(text="Đã dừng quay video.")
             video_path = "output_video.avi"
-            cap_video = cv2.VideoCapture(video_path)  # Mở video đã quay
+            display_recorded_video(video_path)  # Hiển thị video đã quay
 
-            def display_video():
-                ret, frame = cap_video.read()
-                if ret:
-                    # Chuyển đổi frame từ BGR sang RGB
-                    frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    img_pil = Image.fromarray(frame_resized)
-                    img_tk = ctk.CTkImage(size=(300, 300), light_image=img_pil)
-
-                    # Hiển thị frame video trên giao diện
-                    image_label.configure(image=img_tk)
-                    image_label.image = img_tk
-
-                    # Tiếp tục hiển thị video sau mỗi 10ms
-                    root.after(30, display_video)
-
-            # Bắt đầu hiển thị video
-            display_video()
-            update_frame()
-
-            def recognize_gesture():
-                cap_video = cv2.VideoCapture(video_path)  # Mở video
+            def recognize_gesture_from_video():
+                """Nhận diện cử chỉ từ video đã quay."""
+                cap_video = cv2.VideoCapture(video_path)
                 frame_count = 0
-                prev_gesture = None  # Biến lưu cử chỉ trước đó để tránh nhận diện lại cùng cử chỉ
+                prev_gesture = None
 
                 def process_frame():
                     nonlocal frame_count, prev_gesture
                     ret, frame = cap_video.read()
                     if not ret:
-                        cap_video.release()  # Đóng video nếu không còn frame
+                        cap_video.release()  # Đóng video khi kết thúc
                         return
 
                     # Chỉ nhận diện trên những frame nhất định
-                    if frame_count % 10 == 0:
+                    if frame_count % 10 == 0:  # Mỗi 10 frame xử lý 1 lần
                         preprocessed_frame = preprocess_image(frame)  # Tiền xử lý frame
                         predicted_class, confidence = predict_gesture(model, preprocessed_frame)  # Nhận diện cử chỉ
 
-                        # Hiển thị kết quả nếu độ tin cậy đủ cao và cử chỉ mới
+                        # Hiển thị kết quả nếu độ tin cậy cao và khác cử chỉ trước
                         if confidence > 0.5 and predicted_class != prev_gesture:
                             show_result(predicted_class, confidence)
                             prev_gesture = predicted_class
 
                     frame_count += 1
 
-                    # Chuyển đổi frame từ OpenCV thành hình ảnh Tkinter để hiển thị
-                    frame_resized = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    img_pil = Image.fromarray(frame_resized)
-                    img_tk = ctk.CTkImage(size=(300, 300), light_image=img_pil)
+                    # Hiển thị frame trên giao diện
+                    display_frame(frame, image_label, size=(300, 300))
 
-                    # Cập nhật hình ảnh lên giao diện
-                    image_label.configure(image=img_tk)
-                    image_label.image = img_tk  # Giữ tham chiếu tới ảnh để tránh bị thu hồi
+                    # Lên lịch xử lý frame tiếp theo
+                    root.after(30, process_frame)
 
-                    # Lên lịch gọi lại hàm sau mỗi 30ms để tiếp tục hiển thị video
-                    root.after(10, process_frame)
-
-                # Bắt đầu vòng lặp xử lý frame
                 process_frame()
 
-            # Gán hàm nhận diện cử chỉ cho nút "Nhận diện cử chỉ"
-            recognize_btn.configure(command=recognize_gesture)
+            # Gán hàm nhận diện video vào nút "Nhận diện cử chỉ"
+            recognize_btn.configure(command=recognize_gesture_from_video)
 
-        update_frame()  # Bắt đầu cập nhật hình ảnh từ camera
+        def display_recorded_video(video_path):
+            """Hiển thị video đã quay."""
+            cap_video = cv2.VideoCapture(video_path)
+
+            def process_video():
+                ret, frame = cap_video.read()
+                if ret:
+                    display_frame(frame, image_label, size=(300, 300))  # Hiển thị frame
+                    root.after(30, process_video)
+                else:
+                    cap_video.release()  # Đóng video khi kết thúc
+
+            process_video()
+
+        update_frame()  # Bắt đầu hiển thị từ camera
         image_label.grid(row=2, column=4, columnspan=3, rowspan=6, pady=15, padx=15)
         camera_label.grid(row=2, column=1, columnspan=3, rowspan=6)
 
+        # Gán chức năng cho các nút
         capture_image_btn.configure(command=capture_image)
         capture_image_btn.grid(row=9, column=1)
+
         start_video_btn.configure(command=start_video_recording)
         start_video_btn.grid(row=9, column=2)
+
         stop_video_btn.configure(command=stop_video_recording)
         stop_video_btn.grid(row=9, column=3)
 
